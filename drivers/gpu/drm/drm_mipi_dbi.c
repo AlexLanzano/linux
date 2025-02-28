@@ -698,12 +698,24 @@ EXPORT_SYMBOL(mipi_dbi_dev_init);
  */
 void mipi_dbi_hw_reset(struct mipi_dbi *dbi)
 {
+	struct device *dev = &dbi->spi->dev;
+
 	if (!dbi->reset)
 		return;
 
-	gpiod_set_value_cansleep(dbi->reset, 0);
-	usleep_range(20, 1000);
-	gpiod_set_value_cansleep(dbi->reset, 1);
+	if (device_property_read_bool(dev, "reverse-reset-logic"))
+	{
+		gpiod_set_value_cansleep(dbi->reset, 1);
+		usleep_range(20, 1000);
+		gpiod_set_value_cansleep(dbi->reset, 0);
+	} else {
+		dev_warn(dev, "Missing 'reverse-reset-logic' DT property. Please update DTS to include this"
+			 " property and set the reset GPIO to GPIO_ACTIVE_LOW\n");
+		gpiod_set_value_cansleep(dbi->reset, 0);
+		usleep_range(20, 1000);
+		gpiod_set_value_cansleep(dbi->reset, 1);
+	}
+
 	msleep(120);
 }
 EXPORT_SYMBOL(mipi_dbi_hw_reset);
